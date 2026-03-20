@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Shield, ArrowLeft, Trash2, UserPlus, Users } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [newAdmin, setNewAdmin] = useState({ username: '', password: '' });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,8 +41,13 @@ const AdminPanel = () => {
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null });
 
     try {
       const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
@@ -76,6 +83,14 @@ const AdminPanel = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title="Delete User"
+        message="Are you sure you want to delete this user? This action cannot be undone."
+        confirmText="Yes, Delete"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null })}
+      />
       <div className="bg-white shadow">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -170,7 +185,7 @@ const AdminPanel = () => {
                             <option value="admin">Admin</option>
                           </select>
                           <button 
-                            onClick={() => handleDeleteUser(u._id)}
+                            onClick={() => handleDeleteClick(u._id)}
                             className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-colors"
                             title="Delete User"
                           >

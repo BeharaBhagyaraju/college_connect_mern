@@ -7,7 +7,6 @@ const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    role: 'regular_user',
     contact: ''
   });
   const [error, setError] = useState('');
@@ -110,21 +109,6 @@ const Register = () => {
             </div>
           </div>
 
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold text-gray-800 text-sm" htmlFor="role">
-              Role
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full py-3 px-4 text-gray-700 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all"
-            >
-              <option value="regular_user">Student</option>
-              <option value="class_representative">Class Representative</option>
-            </select>
-          </div>
 
           <button
             type="submit"

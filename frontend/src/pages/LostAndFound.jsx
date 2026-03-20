@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, PlusCircle, Search, Archive, CheckCircle, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 const LostAndFound = () => {
   const [items, setItems] = useState([]);
@@ -9,6 +10,7 @@ const LostAndFound = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [newItem, setNewItem] = useState({ itemName: '', description: '', locationFound: '', status: 'lost', photo: null });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -74,8 +76,13 @@ const LostAndFound = () => {
     }
   };
 
-  const handleDeleteItem = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this lost item?")) return;
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null });
     try {
       const config = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
       await axios.delete(`/api/lost-items/${id}`, config);
@@ -88,6 +95,14 @@ const LostAndFound = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title="Delete Item"
+        message="Are you sure you want to delete this lost item? This action cannot be undone."
+        confirmText="Yes, Delete"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null })}
+      />
       <div className="bg-white shadow">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -217,7 +232,7 @@ const LostAndFound = () => {
                       
                       {(user?.role === 'admin' || user?.id === item.reportedBy?._id || user?._id === item.reportedBy?._id) && (
                         <button 
-                          onClick={() => handleDeleteItem(item._id)}
+                          onClick={() => handleDeleteClick(item._id)}
                           className="flex items-center gap-1 text-red-600 hover:text-red-700 font-medium bg-red-50 px-3 py-1.5 rounded-md hover:bg-red-100 transition-colors"
                         >
                           <Trash2 size={16} /> Delete

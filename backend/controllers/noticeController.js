@@ -54,3 +54,26 @@ exports.deleteNotice = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Update a notice
+exports.updateNotice = async (req, res) => {
+  try {
+    const notice = await Notice.findById(req.params.id);
+    if (!notice) {
+      return res.status(404).json({ message: 'Notice not found' });
+    }
+
+    if (notice.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    const { title, content } = req.body;
+    if (title) notice.title = title;
+    if (content) notice.content = content;
+
+    await notice.save();
+    res.json(notice);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Megaphone, MessageSquare, PlusCircle, Trash2, Calendar, Clock, User as UserIcon, X, Send, AlertCircle, CheckCircle } from 'lucide-react';
+import { Megaphone, MessageSquare, PlusCircle, Trash2, Calendar, Clock, User as UserIcon, X, Send, AlertCircle, CheckCircle, Edit } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Notices = () => {
   const [notices, setNotices] = useState([]);
@@ -12,6 +13,8 @@ const Notices = () => {
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [formLoading, setFormLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [editingId, setEditingId] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
 
   const fetchNotices = async () => {
     try {
@@ -55,14 +58,24 @@ const Notices = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        '/api/notices',
-        { title: formData.title, content: formData.content, type: noticeType },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMessage({ type: 'success', text: 'Notice added successfully!' });
+      if (editingId) {
+        await axios.put(
+          `/api/notices/${editingId}`,
+          { title: formData.title, content: formData.content },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setMessage({ type: 'success', text: 'Notice updated successfully!' });
+      } else {
+        await axios.post(
+          '/api/notices',
+          { title: formData.title, content: formData.content, type: noticeType },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setMessage({ type: 'success', text: 'Notice added successfully!' });
+      }
       setFormData({ title: '', content: '' });
       setShowForm(false);
+      setEditingId(null);
       fetchNotices();
     } catch (error) {
       console.error('Error creating notice:', error);
@@ -72,8 +85,20 @@ const Notices = () => {
     }
   };
 
-  const handleDeleteNotice = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this notice?')) return;
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const handleEditClick = (notice) => {
+    setFormData({ title: notice.title, content: notice.content });
+    setEditingId(notice._id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null });
     
     try {
       const token = localStorage.getItem('token');
@@ -97,6 +122,14 @@ const Notices = () => {
   return (
     <div className="font-[Nunito] bg-[#f0f2f5] min-h-screen py-8 text-[#333]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <ConfirmModal 
+          isOpen={confirmModal.isOpen}
+          title="Delete Notice"
+          message="Are you sure you want to delete this notice? This action cannot be undone."
+          confirmText="Yes, Delete"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirmModal({ isOpen: false, id: null })}
+        />
         
         <h1 className="text-[2rem] font-bold text-[#2c3e50] text-center mb-8 pb-4 relative after:content-['📢'] after:absolute after:-bottom-3 after:left-1/2 after:-translate-x-1/2 after:text-[1.5rem] animate-[fadeIn_0.5s_ease-in-out]">
           College Notices Board
@@ -131,7 +164,7 @@ const Notices = () => {
         {showForm && (
           <div className="bg-white p-8 rounded-[15px] shadow-[0_10px_30px_rgba(0,0,0,0.1)] max-w-3xl mx-auto mb-10 border-t-[5px] border-[#9b59b6] animate-[fadeIn_0.5s_ease-in-out]">
             <h3 className="text-[#2c3e50] text-xl font-semibold text-center pb-4 mb-6 border-b border-gray-100 flex items-center justify-center gap-2">
-              ✏️ {user?.role === 'admin' ? '✨ Add Official Notice' : '✨ Add Unofficial Notice'}
+              ✏️ {editingId ? 'Edit Notice' : (user?.role === 'admin' ? '✨ Add Official Notice' : '✨ Add Unofficial Notice')}
             </h3>
             
             <form onSubmit={handleCreateNotice}>
@@ -167,7 +200,7 @@ const Notices = () => {
               <div className="flex justify-end gap-3">
                 <button 
                   type="button" 
-                  onClick={() => setShowForm(false)}
+                  onClick={() => { setShowForm(false); setEditingId(null); setFormData({title: '', content: ''}); }}
                   className="bg-[#ecf0f1] hover:bg-[#dfe6e9] text-[#7f8c8d] hover:text-[#636e72] font-semibold px-6 py-2.5 rounded-lg flex items-center gap-2 transition-colors"
                 >
                   <X size={18} /> Cancel
@@ -178,7 +211,7 @@ const Notices = () => {
                   className="bg-gradient-to-br from-[#9b59b6] to-[#8e44ad] hover:from-[#8e44ad] hover:to-[#9b59b6] text-white font-semibold px-6 py-2.5 rounded-lg shadow-[0_4px_10px_rgba(155,89,182,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_15px_rgba(155,89,182,0.4)] flex items-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {formLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={18} />}
-                  Submit Notice
+                  {editingId ? 'Update Notice' : 'Submit Notice'}
                 </button>
               </div>
             </form>
@@ -214,12 +247,20 @@ const Notices = () => {
                           <span className="flex items-center gap-1"><Clock size={14} /> {new Date(notice.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                         </div>
                         {(user?.role === 'admin' || user?._id === notice.createdBy?._id || user?.id === notice.createdBy?._id) && (
-                          <button 
-                            onClick={() => handleDeleteNotice(notice._id)}
-                            className="text-[#e74c3c] hover:bg-[#e74c3c]/10 hover:text-[#c0392b] px-2 py-1 rounded transition-colors flex items-center gap-1 shrink-0"
-                          >
-                            <Trash2 size={14} /> Delete
-                          </button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              onClick={() => handleEditClick(notice)}
+                              className="text-[#3498db] hover:bg-[#3498db]/10 hover:text-[#2980b9] px-2 py-1 rounded transition-colors flex items-center gap-1"
+                            >
+                              <Edit size={14} /> Edit
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteClick(notice._id)}
+                              className="text-[#e74c3c] hover:bg-[#e74c3c]/10 hover:text-[#c0392b] px-2 py-1 rounded transition-colors flex items-center gap-1"
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -257,12 +298,20 @@ const Notices = () => {
                           <span className="flex items-center gap-1"><Clock size={14} /> {new Date(notice.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                         </div>
                         {(user?.role === 'admin' || user?._id === notice.createdBy?._id || user?.id === notice.createdBy?._id) && (
-                          <button 
-                            onClick={() => handleDeleteNotice(notice._id)}
-                            className="text-[#e74c3c] hover:bg-[#e74c3c]/10 hover:text-[#c0392b] px-2 py-1 rounded transition-colors flex items-center gap-1 shrink-0"
-                          >
-                            <Trash2 size={14} /> Delete
-                          </button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button 
+                              onClick={() => handleEditClick(notice)}
+                              className="text-[#3498db] hover:bg-[#3498db]/10 hover:text-[#2980b9] px-2 py-1 rounded transition-colors flex items-center gap-1"
+                            >
+                              <Edit size={14} /> Edit
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteClick(notice._id)}
+                              className="text-[#e74c3c] hover:bg-[#e74c3c]/10 hover:text-[#c0392b] px-2 py-1 rounded transition-colors flex items-center gap-1"
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
